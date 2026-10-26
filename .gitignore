@@ -1,0 +1,16 @@
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+
+# Local planning and device diagnostics
+HANDOFF.md
+PRODUCT.md
+.impeccable/
+docs/local-verification.md
+# Signing keys and release output
+*.jks
+*.keystore
+signing.properties
+dist/

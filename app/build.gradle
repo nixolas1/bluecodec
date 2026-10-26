@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+def signingFile = System.getenv('BLUECODEC_SIGNING_PROPERTIES')
+def releaseSigning = new Properties()
+if (signingFile) file(signingFile).withInputStream { releaseSigning.load(it) }
+android {
+    namespace 'no.nixo.bluecodec'
+    compileSdk 36
+    defaultConfig { applicationId 'no.nixo.bluecodec'; minSdk 31; targetSdk 36; versionCode 3; versionName '0.1.0'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
+    signingConfigs {
+        if (signingFile) {
+            release {
+                storeFile file(releaseSigning['storeFile'])
+                storePassword releaseSigning['storePassword']
+                keyAlias releaseSigning['keyAlias']
+                keyPassword releaseSigning['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (signingFile) signingConfig signingConfigs.release
+        }
+    }
+    buildFeatures { aidl true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'junit:junit:4.13.2'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+}

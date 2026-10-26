@@ -1,0 +1,8 @@
+<resources>
+<style name="AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+<item name="android:fontFamily">sans</item><item name="colorPrimary">@color/accent</item><item name="colorOnPrimary">@color/on_accent</item><item name="colorPrimaryContainer">@color/soft</item><item name="colorOnPrimaryContainer">@color/ink</item><item name="colorSecondaryContainer">@color/soft</item><item name="colorOnSecondaryContainer">@color/ink</item><item name="colorSurface">@color/surface</item><item name="colorOnSurface">@color/ink</item><item name="colorOnSurfaceVariant">@color/muted</item><item name="colorOutline">@color/outline</item><item name="android:colorBackground">@color/page</item><item name="android:windowBackground">@color/page</item><item name="android:colorAccent">@color/accent</item><item name="bottomSheetDialogTheme">@style/WarmBottomSheetDialog</item><item name="colorSurfaceContainerLow">@color/surface</item><item name="colorSurfaceContainerHigh">@color/soft</item><item name="shapeAppearanceMediumComponent">@style/SoftShape</item><item name="shapeAppearanceLargeComponent">@style/SoftShape</item>
+</style>
+<style name="SoftShape"><item name="cornerFamily">rounded</item><item name="cornerSize">28dp</item></style>
+<style name="WarmBottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog"><item name="bottomSheetStyle">@style/WarmBottomSheet</item></style>
+<style name="WarmBottomSheet" parent="Widget.Material3.BottomSheet.Modal"><item name="backgroundTint">@color/surface</item><item name="shapeAppearance">@style/SoftShape</item></style>
+</resources>

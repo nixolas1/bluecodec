@@ -1,0 +1,4 @@
+<resources>
+<color name="icon_background">#30261E</color>
+<color name="page">#F6EBDD</color><color name="surface">#FFF8EF</color><color name="ink">#38281F</color><color name="muted">#715B4C</color><color name="accent">#9A4C1F</color><color name="on_accent">#FFF8EF</color><color name="soft">#ECDCC9</color><color name="outline">#D1BEA8</color>
+</resources>
