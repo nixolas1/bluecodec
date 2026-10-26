@@ -1,5 +1,7 @@
 # Manual reconnect design
 
+**Experimental.** Physically tested on Pixel 10 Pro / Android 17 with Sony WH-1000XM3. See the [device adaptation guide](device-compatibility.md) for other firmware.
+
 The “Disable automatic reconnect” toggle makes the BlueCodec Quick Settings tile block classic audio profiles (A2DP and HFP) before switching Bluetooth off. Enabling the toggle alone does not change connection policies; disabling it restores saved policies. LE Audio, keyboards, watches, and other non-audio profiles are outside its scope.
 
 ## Mechanism
@@ -8,12 +10,12 @@ The “Disable automatic reconnect” toggle makes the BlueCodec Quick Settings 
 
 `ReconnectSettings` journals every original ALLOWED audio policy in app-private SharedPreferences with a synchronous commit before mutation. Existing FORBIDDEN policies are left untouched. For a currently connected/connecting audio device, it first writes UNKNOWN without disconnecting playback. For a disconnected device it writes FORBIDDEN, which blocks both outgoing and incoming profile connections.
 
-UNKNOWN alone and shutdown-broadcast blocking both failed physical validation on the target Pixel/Sony headset. The broadcast arrives too late to reliably change policies. The application therefore uses an explicit **Turn Bluetooth off** action instead.
+UNKNOWN alone and shutdown-broadcast blocking both failed physical validation on the target Pixel/Sony headset. The broadcast arrives too late to reliably change policies. The application therefore uses the BlueCodec tile’s explicit shutdown sequence instead.
 
 `turnBluetoothOff` reads and journals eligible policies while Bluetooth is ON, writes FORBIDDEN to every owned profile (including active devices), then reads the complete policy snapshot again. It calls the shell service's adapter disable only after all owned profiles are confirmed FORBIDDEN and no new ALLOWED profile appeared. A failed write/readback restores originals without requesting shutdown. Once shutdown is requested, an error retains the durable journal because radio state may be uncertain. The user service invokes the fixed platform shell command `/system/bin/cmd bluetooth_manager disable` as UID 2000 (three-second process timeout with forced cleanup; output discarded to avoid pipe blockage). This avoids the bootstrap adapter's invalid package attribution. It then waits at most five seconds for STATE_OFF and reports success only after observing it. Blocking disconnects current audio before radio shutdown.
 
-System Bluetooth controls do not arm this protection. After an explicit BlueCodec connection, use this in-app action again before the next shutdown. Active UNKNOWN policies never report ready.
-An explicit BlueCodec Connect opens only that device's journaled profiles to UNKNOWN and calls the typed profile `connect` methods. A 15-second window prevents connection-state races from closing the policy before the request can complete; the controller reconciles again afterward. Once connected, it remains UNKNOWN until the next Bluetooth shutdown. Settings and other apps may not connect profiles while they are FORBIDDEN; use BlueCodec's Connect action.
+System Bluetooth controls do not arm this protection. After an explicit connection, use the BlueCodec tile again for the next shutdown. Active UNKNOWN policies never report ready.
+An explicit BlueCodec Connect opens only that device's journaled profiles to UNKNOWN and calls the typed profile `connect` methods. A 15-second window prevents connection-state races from closing the policy before the request can complete; the controller reconciles again afterward. Once connected, it remains UNKNOWN until the next Bluetooth shutdown. Android’s normal connection path cannot connect FORBIDDEN profiles. The manual-request bridge described below handles supported Settings/SystemUI requests through the same per-device Connect path.
 
 This is a device policy change, not interception of Android's Bluetooth tile. LE Audio remains outside scope.
 Disabling restores only policies that still equal the app's applied value or the previous value of an interrupted write, preserving later external changes. A service death or interrupted restore leaves the durable journal for retry when Shizuku and Bluetooth return. Restoring ALLOWED asks Android to connect that profile, so disabling can reconnect nearby devices. Uninstalling or clearing app storage before restoration loses the restore journal; turn the setting off and wait for confirmation first.
@@ -23,7 +25,7 @@ Disabling restores only policies that still equal the app's applied value or the
 - Construct `ReconnectSettings` in the app controller.
 - Run `setEnabled`, `reconcile`, and `connect` on its serial worker and publish afterward.
 - Reconcile after the shell user service is ready, Bluetooth reaches ON, a profile connects/disconnects while Bluetooth remains ON, or a pairing changes.
-- Call `turnBluetoothOff(service)` on the serial worker for the in-app button. `operationFailed()` reports its last result. Do not reconcile during this operation or while Bluetooth is OFF. No shutdown broadcast mutation is used.
+- Call `turnBluetoothOff(service)` on the serial worker when the tile switches Bluetooth off with the setting enabled. `operationFailed()` reports its last result. Do not reconcile during this operation or while Bluetooth is OFF. No shutdown broadcast mutation is used.
 - After explicit Connect, reconcile again after 15 seconds.
 - Keep monitoring available while `needsService()` is true, independently of codec preferences.
 - `enabled()` is intent; `ready()` is verified state in this process. Display `status()` for unavailable access or a pending restore.

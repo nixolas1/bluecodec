@@ -44,6 +44,11 @@ negotiates sample rate and bit depth and may fall back to another codec.
 
 ## Stop automatic reconnect
 
+**Experimental · Tested on Pixel 10 Pro / Android 17.** This feature depends on
+firmware-specific Bluetooth behavior. For other devices, see the
+[device adaptation guide](docs/device-compatibility.md) to investigate compatibility,
+implement a device-specific adapter, and build your own APK.
+
 1. Enable **Disable automatic reconnect** in BlueCodec.
 2. Tap **Add Bluetooth tile** and accept Android's prompt. On Android 12, add it
    manually through the Quick Settings editor.
@@ -152,7 +157,8 @@ Bug reports are especially useful from other phones. Include phone model, Androi
 version, Shizuku version, headset model, and steps to reproduce. Please redact MAC
 addresses and unrelated personal information from diagnostics.
 
-Code changes and compatibility fixes are welcome. The main components are
+Code changes and compatibility fixes are welcome. Start with the
+[device adaptation guide](docs/device-compatibility.md) for reconnect support. The main components are
 `CodecService` (Shizuku access), `CodecController` (serialized operations and retries),
 `ReconnectSettings` (connection policies and restoration), and
 `ManualConnectionRequests` (Android Settings compatibility).

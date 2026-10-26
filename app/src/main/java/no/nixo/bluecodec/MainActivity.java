@@ -461,6 +461,8 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout reconnectText = column();
     text(reconnectText, "Disable automatic reconnect", 20, ink, true);
     gap(reconnectText, 6);
+    text(reconnectText, "Experimental · Tested on Pixel 10 Pro", 13, accent, true);
+    gap(reconnectText, 6);
     text(
         reconnectText,
         "Stop headsets reconnecting when you turn Bluetooth back on.",
@@ -469,7 +471,8 @@ public class MainActivity extends AppCompatActivity {
         false);
     reconnectRow.addView(reconnectText, new LinearLayout.LayoutParams(0, -2, 1));
     MaterialSwitch reconnectSwitch = new MaterialSwitch(this);
-    reconnectSwitch.setContentDescription("Disable automatic reconnect");
+    reconnectSwitch.setContentDescription(
+        "Disable automatic reconnect. Experimental. Tested on Pixel 10 Pro.");
     reconnectSwitch.setChecked(controller.preventReconnect());
     reconnectSwitch.setEnabled(!controller.reconnectBusy);
     reconnectSwitch.setOnCheckedChangeListener(
