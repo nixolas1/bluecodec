@@ -461,7 +461,12 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout reconnectText = column();
     text(reconnectText, "Disable automatic reconnect", 20, ink, true);
     gap(reconnectText, 6);
-    text(reconnectText, "Use the BlueCodec tile to turn Bluetooth off and on.", 14, muted, false);
+    text(
+        reconnectText,
+        "Stop headsets reconnecting when you turn Bluetooth back on.",
+        14,
+        muted,
+        false);
     reconnectRow.addView(reconnectText, new LinearLayout.LayoutParams(0, -2, 1));
     MaterialSwitch reconnectSwitch = new MaterialSwitch(this);
     reconnectSwitch.setContentDescription("Disable automatic reconnect");
@@ -478,7 +483,19 @@ public class MainActivity extends AppCompatActivity {
                 }));
     reconnectRow.addView(reconnectSwitch);
     reconnectBox.addView(reconnectRow);
-    textButton(reconnectBox, "Add Bluetooth tile", this::addBluetoothTile);
+    gap(reconnectBox, 16);
+    View reconnectDivider = new View(this);
+    reconnectDivider.setBackgroundColor(soft);
+    reconnectBox.addView(reconnectDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+    gap(reconnectBox, 16);
+    text(
+        reconnectBox,
+        "Only the BlueCodec tile applies this setting when turning Bluetooth off.",
+        14,
+        muted,
+        false);
+    textButton(reconnectBox, "Add Bluetooth tile", this::addBluetoothTile)
+        .setIconResource(R.drawable.ic_add);
     boolean bluetoothOff =
         controller.snapshot.has("bluetoothEnabled")
             && !controller.snapshot.optBoolean("bluetoothEnabled");
