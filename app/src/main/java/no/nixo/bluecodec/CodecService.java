@@ -17,6 +17,9 @@ public class CodecService extends ICodecService.Stub {
   private BluetoothAdapter adapter;
   private volatile AudioPolicyAccess audioPolicies;
   private volatile ManualConnectionRequests manualRequests;
+  private volatile VolumeSyncRepair volumeSync;
+  private final java.util.concurrent.ScheduledExecutorService volumeWorker =
+      java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
 
   public CodecService() {
     new Handler(Looper.getMainLooper())
@@ -37,6 +40,13 @@ public class CodecService extends ICodecService.Stub {
                 Context system = (Context) at.getMethod("getSystemContext").invoke(thread);
                 Context shell = system.createPackageContext("com.android.shell", 0);
                 adapter = shell.getSystemService(BluetoothManager.class).getAdapter();
+                try {
+                  volumeSync = new VolumeSyncRepair(shell, () -> a2dp);
+                  volumeWorker.scheduleWithFixedDelay(
+                      volumeSync, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception ignored) {
+                  // Unsupported volume APIs must not prevent codec controls from starting.
+                }
                 audioPolicies = new AudioPolicyAccess(adapter);
                 manualRequests = new ManualConnectionRequests(shell, adapter);
                 adapter.getProfileProxy(
@@ -108,6 +118,7 @@ public class CodecService extends ICodecService.Stub {
     JSONObject result = new JSONObject();
     try {
       result.put("uid", android.os.Process.myUid());
+      if (volumeSync != null) result.put("volumeSync", volumeSync.status);
       if (adapter != null && !adapter.isEnabled())
         return result.put("bluetoothEnabled", false).put("devices", new JSONArray()).toString();
       JSONArray tileDevices = new JSONArray();
@@ -124,6 +135,12 @@ public class CodecService extends ICodecService.Stub {
       if (a2dp == null) return result.put("error", initialization).toString();
       JSONArray devices = new JSONArray();
       List<BluetoothDevice> active = a2dp.getConnectedDevices();
+      BluetoothDevice routed = null;
+      try {
+        routed = (BluetoothDevice) call(a2dp, "getActiveDevice");
+      } catch (Exception ignored) {
+        // Some firmware omits this hidden API; connected-device selection still works.
+      }
       List<BluetoothDevice> paired = new ArrayList<>(adapter.getBondedDevices());
       paired.sort(
           Comparator.comparing((BluetoothDevice d) -> !active.contains(d))
@@ -138,6 +155,7 @@ public class CodecService extends ICodecService.Stub {
             new JSONObject()
                 .put("address", device.getAddress())
                 .put("name", displayName(device))
+                .put("active", device.equals(routed))
                 .put("connected", active.contains(device));
         if (!active.contains(device)) {
           devices.put(d);
@@ -294,6 +312,7 @@ public class CodecService extends ICodecService.Stub {
   }
 
   public void destroy() {
+    volumeWorker.shutdownNow();
     if (manualRequests != null) manualRequests.close();
     System.exit(0);
   }

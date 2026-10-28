@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
   private LinearLayout content;
   private final Handler handler = new Handler(Looper.getMainLooper());
   private String selected = "", rendered = "";
+  private final DeviceSelection deviceSelection = new DeviceSelection();
   private int ink, muted, accent, soft, surface;
   private final Runnable update = this::render;
   private final Runnable poll =
@@ -189,6 +190,11 @@ public class MainActivity extends AppCompatActivity {
   }
 
   void render() {
+    String next = deviceSelection.update(controller.snapshot, selected);
+    if (!next.equals(selected)) {
+      selected = next;
+      controller.prefs.store.edit().putString("selected", selected).apply();
+    }
     boolean ready =
         controller.authorized()
             && !controller.snapshot.has("error")
@@ -221,6 +227,33 @@ public class MainActivity extends AppCompatActivity {
     header.addView(wordmark, new LinearLayout.LayoutParams(0, -2, 1));
     content.addView(header);
     gap(content, 24);
+    boolean bluetoothOff =
+        controller.snapshot.has("bluetoothEnabled")
+            && !controller.snapshot.optBoolean("bluetoothEnabled");
+    if (bluetoothOff) {
+      LinearLayout bluetoothBox = card();
+      text(bluetoothBox, "Enable Bluetooth to configure", 20, ink, true);
+      button(
+          bluetoothBox,
+          controller.reconnectBusy ? "Enabling…" : "Enable Bluetooth",
+          true,
+          controller.bluetoothServiceReady() && !controller.reconnectBusy,
+          () -> {
+            startMonitoring(false);
+            controller.turnBluetoothOn(() -> {});
+          });
+      if (controller.reconnectActionFailed && !controller.reconnectActionMessage.isEmpty()) {
+        gap(bluetoothBox, 8);
+        text(
+            bluetoothBox,
+            controller.reconnectActionMessage,
+            14,
+            com.google.android.material.color.MaterialColors.getColor(
+                bluetoothBox, androidx.appcompat.R.attr.colorError),
+            true);
+      }
+      gap(content, 16);
+    }
     JSONArray devices = controller.snapshot.optJSONArray("devices");
     if (!ready) {
       LinearLayout setup = card();
@@ -499,10 +532,9 @@ public class MainActivity extends AppCompatActivity {
         false);
     textButton(reconnectBox, "Add Bluetooth tile", this::addBluetoothTile)
         .setIconResource(R.drawable.ic_add);
-    boolean bluetoothOff =
-        controller.snapshot.has("bluetoothEnabled")
-            && !controller.snapshot.optBoolean("bluetoothEnabled");
-    if (controller.reconnectActionFailed && !controller.reconnectActionMessage.isEmpty()) {
+    if (!bluetoothOff
+        && controller.reconnectActionFailed
+        && !controller.reconnectActionMessage.isEmpty()) {
       gap(reconnectBox, 8);
       int errorColor =
           com.google.android.material.color.MaterialColors.getColor(
@@ -695,6 +727,8 @@ public class MainActivity extends AppCompatActivity {
             muted,
             false);
     diagnostics.append("\n\n" + controller.reconnect.status());
+    if (controller.snapshot.has("volumeSync"))
+      diagnostics.append("\n\n" + controller.snapshot.optString("volumeSync"));
     diagnostics.setTextIsSelectable(true);
     gap(detail, 16);
     text(
@@ -779,6 +813,7 @@ public class MainActivity extends AppCompatActivity {
 
   protected void onResume() {
     super.onResume();
+    deviceSelection.opened();
     controller.listeners.add(update);
     handler.post(poll);
     render();

@@ -135,6 +135,7 @@ public class MonitorService extends Service {
     if (!registered) {
       IntentFilter filter = new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED);
       filter.addAction("android.bluetooth.a2dp.profile.action.CODEC_CONFIG_CHANGED");
+      filter.addAction("android.bluetooth.a2dp.profile.action.ACTIVE_DEVICE_CHANGED");
       filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
       filter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
       filter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);

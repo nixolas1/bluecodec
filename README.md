@@ -16,6 +16,11 @@ firmware. Other devices are not yet verified.
 
 ## Features
 
+- **Follow the connected device.** Opening the app selects the active audio device;
+  connecting another device updates the selection automatically.
+- **Recover missing Bluetooth volume synchronization.** A guarded Shizuku workaround
+  restores phone volume control when Android loses the active device’s absolute-volume
+  registration. Verified on Pixel 10 Pro / Android 17 with a Samsung soundbar.
 - **A codec preference for each headset.** Choose from the codecs Android reports
   as selectable for that connection. Automatically reapply your choice, or apply it manually.
 - **Optional automatic reconnect blocking.** Switch Bluetooth off with the

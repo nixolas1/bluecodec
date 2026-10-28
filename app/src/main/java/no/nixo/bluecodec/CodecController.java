@@ -39,7 +39,7 @@ public class CodecController extends Application {
               new ComponentName("no.nixo.bluecodec", CodecService.class.getName()))
           .daemon(false)
           .processNameSuffix("codec")
-          .version(12);
+          .version(14);
   private final ServiceConnection connection =
       new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder binder) {
