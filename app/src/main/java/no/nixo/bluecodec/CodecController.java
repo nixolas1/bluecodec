@@ -244,6 +244,10 @@ public class CodecController extends Application {
         });
   }
 
+  int connectedCount() {
+    return connected.size();
+  }
+
   void connectedEvent(String address) {
     if (disconnecting.remove(address)) connected.remove(address);
     refresh(false);

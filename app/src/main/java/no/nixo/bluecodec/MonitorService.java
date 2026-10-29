@@ -84,18 +84,18 @@ public class MonitorService extends Service {
   }
 
   private Notification notification() {
-    String message =
-        controller.authorized()
-            ? (controller.reconnect.enabled()
-                ? "Headset connection settings saved"
-                : "Apply saved codecs on reconnect")
-            : controller.readiness;
+    int connectedCount = controller.connectedCount();
+    String status = connectedCount == 0 ? "Waiting" : connectedCount + " connected";
+    Bundle extras = new Bundle();
+    // Notification.EXTRA_PREFER_SMALL_ICON (API 37); use its key while compiling with SDK 36.
+    extras.putBoolean("android.app.preferSmallIcon", true);
     Notification.Builder builder =
         new Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("BlueCodec · monitoring")
-            .setContentText(message)
-            .setStyle(new Notification.BigTextStyle().bigText(message))
+            .addExtras(extras)
+            .setSmallIcon(R.drawable.ic_bluetooth)
+            .setColor(Notification.COLOR_DEFAULT)
+            .setContentTitle("BlueCodec · " + status)
+            .setContentText("Press to open")
             .setContentIntent(open(this))
             .setOngoing(true);
     if (controller.monitoring && controller.prefs.anyEnabled())
