@@ -9,6 +9,20 @@ import org.json.*;
 /** Durable classic-audio policy journal. All mutating operations run on the controller worker. */
 final class ReconnectSettings {
   private final SharedPreferences store;
+  private final Set<String> completedMediaRequests = new HashSet<>();
+  private final java.util.function.LongSupplier clock;
+  private long startupBlockUntil;
+  private boolean startupReleasePending;
+  private static final long STARTUP_BLOCK_MS = 2000;
+
+  synchronized void bluetoothStarted() {
+    startupBlockUntil = clock.getAsLong() + STARTUP_BLOCK_MS;
+    startupReleasePending = true;
+  }
+
+  synchronized boolean startupReleaseDue() {
+    return enabled() && startupReleasePending && clock.getAsLong() >= startupBlockUntil;
+  }
   private final Map<String, Long> explicitConnections = new HashMap<>();
   private volatile String status;
   private volatile boolean ready;
@@ -20,7 +34,13 @@ final class ReconnectSettings {
   }
 
   ReconnectSettings(Context context) {
+    this(context, SystemClock::elapsedRealtime);
+  }
+
+  ReconnectSettings(Context context, java.util.function.LongSupplier clock) {
+    this.clock = clock;
     store = context.getSharedPreferences("manual_reconnect", Context.MODE_PRIVATE);
+    if (enabled()) bluetoothStarted();
     status =
         enabled()
             ? "Checking connection settings…"
@@ -52,7 +72,9 @@ final class ReconnectSettings {
   synchronized String setEnabled(boolean enabled, ICodecService service) {
     if (!store.edit().putBoolean("enabled", enabled).commit())
       return status = "Could not save this setting. Nothing changed.";
+    if (enabled) bluetoothStarted();
     if (!enabled) {
+      startupReleasePending = false;
       explicitConnections.clear();
       store.edit().remove("shutdown_failed").commit();
     }
@@ -93,7 +115,11 @@ final class ReconnectSettings {
       for (JSONObject row : actual.values())
         if (row.optBoolean("connected") || row.optBoolean("connecting"))
           active.add(row.getString("address"));
-      long now = SystemClock.elapsedRealtime();
+      Set<String> linked = new HashSet<>();
+      for (JSONObject row : actual.values())
+        if (row.optBoolean("connected")) linked.add(row.getString("address"));
+      completedMediaRequests.retainAll(linked);
+      long now = clock.getAsLong();
       explicitConnections.entrySet().removeIf(e -> e.getValue() < now);
       active.addAll(explicitConnections.keySet());
       for (JSONObject row : actual.values()) {
@@ -113,7 +139,10 @@ final class ReconnectSettings {
       for (JSONObject entry : owned.values()) {
         JSONObject current = actual.get(key(entry));
         if (current == null) continue;
-        int target = active.contains(entry.getString("address")) ? unknown : forbidden;
+        // FORBIDDEN is only for adapter startup. UNKNOWN permits headset-initiated
+        // connections without enabling Android's normal outgoing reconnect policy.
+        int target = active.contains(entry.getString("address")) || now >= startupBlockUntil
+            ? unknown : forbidden;
         if (current.getInt("policy") == target) {
           entry.put("applied", target).remove("previous");
           continue;
@@ -122,6 +151,20 @@ final class ReconnectSettings {
         transition(service, owned, entry, current.getInt("policy"), target);
       }
       saveJournal(owned);
+      if (now >= startupBlockUntil) {
+        startupReleasePending = false;
+        // UNKNOWN prevents Android from filling in missing profiles. A headset can
+        // initiate HFP only; complete its owned media profile once per connection.
+        for (JSONObject entry : owned.values()) {
+          String address = entry.getString("address");
+          JSONObject current = actual.get(key(entry));
+          if (entry.getInt("profile") == android.bluetooth.BluetoothProfile.A2DP
+              && entry.getInt("applied") == unknown && linked.contains(address)
+              && current != null && !current.optBoolean("connected")
+              && !current.optBoolean("connecting") && completedMediaRequests.add(address))
+            service.connectAudio(address);
+        }
+      }
       boolean allBlocked = true;
       for (JSONObject entry : owned.values()) {
         if (entry.getInt("applied") != forbidden || entry.has("previous")) {
@@ -133,6 +176,8 @@ final class ReconnectSettings {
       ready = allBlocked && !store.getBoolean("shutdown_failed", false);
       if (store.getBoolean("shutdown_failed", false))
         return status = "Android shut down Bluetooth before reconnect blocking could finish.";
+      if (now >= startupBlockUntil)
+        return status = "Headsets can connect when turned on. Startup reconnect blocking is armed for the tile.";
       if (!allBlocked)
         return status = "Active audio connections are not protected from reconnecting.";
       return status =
@@ -162,6 +207,7 @@ final class ReconnectSettings {
     operationFailed = true;
     ready = false;
     explicitConnections.clear();
+    completedMediaRequests.clear();
     boolean disableInvoked = false;
     boolean attemptedWrite = false;
     boolean previouslyEnabled = enabled();
@@ -209,6 +255,8 @@ final class ReconnectSettings {
             result.optString("error", "Bluetooth OFF was not confirmed"));
       store.edit().remove("shutdown_failed").commit();
       operationFailed = false;
+      startupBlockUntil = Long.MAX_VALUE;
+      startupReleasePending = false;
       activeConnection = false;
       ready = true;
       return status = "Bluetooth is off.";

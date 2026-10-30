@@ -112,7 +112,7 @@ public class ControllerTest {
   }
 
   @Test
-  public void outputSelectionConfirmsReadbackAndIgnoresDuplicateTap() throws Exception {
+  public void outputSelectionHonorsLatestRequest() throws Exception {
     java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
     main(
         () -> {
@@ -125,11 +125,27 @@ public class ControllerTest {
           assertEquals(DEVICE, controller.pendingOutput);
         });
     assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS));
-    assertEquals(1, service.outputRequests.get());
+    assertEquals(2, service.outputRequests.get());
     main(
         () ->
             assertEquals(
-                DEVICE, controller.snapshot.optJSONObject("soundOutput").optString("selected")));
+                "phone", controller.snapshot.optJSONObject("soundOutput").optString("selected")));
+  }
+
+  @Test
+  public void connectedHeadsetReplacesPhoneOutput() throws Exception {
+    java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+    main(() -> {
+      controller.listeners.add(() -> {
+        if (DEVICE.equals(controller.snapshot.optJSONObject("soundOutput") == null
+            ? "" : controller.snapshot.optJSONObject("soundOutput").optString("selected")))
+          done.countDown();
+      });
+      controller.connectedEvent(DEVICE);
+    });
+    assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS));
+    assertEquals(DEVICE, service.output);
+    assertEquals(1, service.outputRequests.get());
   }
 
   @Test

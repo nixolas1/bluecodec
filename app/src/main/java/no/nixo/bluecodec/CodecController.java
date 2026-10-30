@@ -23,6 +23,7 @@ public class CodecController extends Application {
   ReconnectSettings reconnect;
   boolean reconnectBusy;
   String pendingOutput = "", outputError = "";
+  private String queuedOutput = "";
   String reconnectActionMessage = "";
   boolean reconnectActionFailed;
   boolean serviceRunning;
@@ -40,7 +41,7 @@ public class CodecController extends Application {
               new ComponentName("no.nixo.bluecodec", CodecService.class.getName()))
           .daemon(false)
           .processNameSuffix("codec")
-          .version(15);
+          .version(16);
   private final ServiceConnection connection =
       new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder binder) {
@@ -252,11 +253,13 @@ public class CodecController extends Application {
 
   void connectedEvent(String address) {
     if (disconnecting.remove(address)) connected.remove(address);
+    selectSoundOutput(address);
     refresh(false);
   }
 
   void disconnected(String address) {
     disconnecting.add(address);
+    if (address.equals(queuedOutput)) queuedOutput = "";
     connected.remove(address);
     cancel(address);
     results.put(address, "Disconnected. Preference saved.");
@@ -570,6 +573,7 @@ public class CodecController extends Application {
   }
 
   void checkManualConnections() {
+    if (reconnect != null && reconnect.startupReleaseDue()) reconcileReconnect();
     if (checkingManualConnections || reconnectBusy || remote == null) return;
     checkingManualConnections = true;
     ICodecService service = remote;
@@ -634,7 +638,11 @@ public class CodecController extends Application {
   }
 
   void selectSoundOutput(String target) {
-    if (remote == null || !pendingOutput.isEmpty()) return;
+    if (remote == null) return;
+    if (!pendingOutput.isEmpty()) {
+      queuedOutput = target;
+      return;
+    }
     pendingOutput = target;
     outputError = "";
     ICodecService service = remote;
@@ -659,6 +667,10 @@ public class CodecController extends Application {
                   outputError = error;
                   if (state != null) snapshot = state;
                 }
+                String next = queuedOutput;
+                queuedOutput = "";
+                if (remote == service && !next.isEmpty() && !next.equals(target))
+                  selectSoundOutput(next);
                 publish();
               });
         });

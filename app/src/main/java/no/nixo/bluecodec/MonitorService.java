@@ -33,7 +33,10 @@ public class MonitorService extends Service {
             int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
             if (state != BluetoothAdapter.STATE_TURNING_OFF) {
               controller.refresh(false);
-              if (state == BluetoothAdapter.STATE_ON) controller.reconcileReconnect();
+              if (state == BluetoothAdapter.STATE_ON) {
+                controller.reconnect.bluetoothStarted();
+                controller.reconcileReconnect();
+              }
             }
             return;
           }
@@ -45,7 +48,10 @@ public class MonitorService extends Service {
           if (BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED.equals(action)) {
             int state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1);
             if (state == BluetoothProfile.STATE_CONNECTED
-                || state == BluetoothProfile.STATE_DISCONNECTED) controller.reconcileReconnect();
+                || state == BluetoothProfile.STATE_DISCONNECTED) {
+              controller.refresh(false);
+              controller.reconcileReconnect();
+            }
             return;
           }
           if (BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED.equals(action)) {

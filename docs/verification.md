@@ -116,3 +116,30 @@ phone volume commands reached index 7 (AVRCP 36), exceeding the pre-disconnect i
 6 (AVRCP 30), then were lowered again. The Onyx remained connected at a low level.
 This completes one physical unattended recovery cycle; it does not verify maximum
 acoustic output or simultaneous switching between two connected physical devices.
+
+### Startup reconnect and output switching, 2026-10-30
+
+The development-signed build with the 2-second startup blocking timer was installed
+in place on Pixel 10 Pro, preserving app data. Debug/release builds and lint passed.
+All 58 instrumentation tests passed on that phone, including the startup deadline
+and automatic output selection tests using fake Bluetooth boundaries.
+
+Live Bluetooth diagnostics confirmed all 33 journaled profile policies reached
+UNKNOWN after startup, allowing incoming headset requests. The 2-second timer is
+not a guarantee that every profile has been changed at exactly 2 seconds: worker
+scheduling and sequential platform calls add delay. Physical headset power-cycle,
+startup reconnect suppression, and audible automatic routing checks are pending.
+
+Physical follow-up found the Sony connected via HFP only, with no A2DP connection;
+the old UI consequently showed the previous disconnected speaker. The follow-up
+build displays calls-only devices explicitly, completes an owned missing media
+profile once per connection, and resumes required monitoring when the app opens.
+The 22 reconnect tests passed, including missing-profile completion and preservation
+of user-disabled media profiles. Debug build and lint passed after the lifecycle fix.
+
+After the in-place update and app launch, MonitorService was running. Android logged
+Sony A2DP connected at 14:05:07 phone time; A2DP and HFP active-device fields both
+pointed to the Sony, and AudioService's preferred media route matched it. UI hierarchy
+confirmed “Nico's Sony WH-1000XM3”, “Connected · LDAC”, and its Sound output option.
+No manual Connect tap was used. Audible playback and a fresh power cycle of this
+follow-up build remain user checks.

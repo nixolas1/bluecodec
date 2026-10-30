@@ -323,8 +323,8 @@ public class MainActivity extends AppCompatActivity {
     gap(reconnectBox, 8);
     text(
         reconnectBox,
-        "Use BlueCodec’s tile to turn Bluetooth off. Paired audio devices stay disconnected when"
-            + " you turn it back on.",
+        "Use BlueCodec’s tile to turn Bluetooth off. Reconnects are blocked for 2 seconds after"
+            + " Bluetooth turns on. Headsets can connect afterward.",
         14,
         muted,
         false);
@@ -437,7 +437,9 @@ public class MainActivity extends AppCompatActivity {
         name,
         connected && current != null
             ? "Connected · " + current.optString("name")
-            : connected ? "Connected · Codec unavailable" : "Not connected",
+            : connected ? "Connected · Codec unavailable"
+                : device.optBoolean("callsConnected") ? "Connected for calls · Media disconnected"
+                : "Not connected",
         14,
         muted,
         false);
@@ -597,7 +599,7 @@ public class MainActivity extends AppCompatActivity {
     if (devices != null)
       for (int i = 0; i < devices.length(); i++) {
         JSONObject d = devices.optJSONObject(i);
-        if (d != null && d.optBoolean("connected")) connected.add(d);
+        if (d != null && (d.optBoolean("connected") || d.optBoolean("callsConnected"))) connected.add(d);
       }
     if (connected.isEmpty()) {
       try {
@@ -911,6 +913,9 @@ public class MainActivity extends AppCompatActivity {
   protected void onResume() {
     super.onResume();
     deviceSelection.opened();
+    if (controller.needsMonitoring() && !controller.serviceRunning
+        && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+            == PackageManager.PERMISSION_GRANTED) beginMonitoring();
     controller.listeners.add(update);
     handler.post(poll);
     render();

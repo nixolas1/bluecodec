@@ -13,6 +13,7 @@ import org.json.*;
 // hidden.
 public class CodecService extends ICodecService.Stub {
   private volatile BluetoothA2dp a2dp;
+  private volatile BluetoothHeadset headset;
   private volatile String initialization = "Waiting for A2DP service";
   private BluetoothAdapter adapter;
   private volatile AudioPolicyAccess audioPolicies;
@@ -74,10 +75,12 @@ public class CodecService extends ICodecService.Stub {
                     shell,
                     new BluetoothProfile.ServiceListener() {
                       public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                        headset = (BluetoothHeadset) proxy;
                         audioPolicies.connected(profile, proxy);
                       }
 
                       public void onServiceDisconnected(int profile) {
+                        headset = null;
                         audioPolicies.disconnected(profile);
                       }
                     },
@@ -142,6 +145,9 @@ public class CodecService extends ICodecService.Stub {
       if (a2dp == null) return result.put("error", initialization).toString();
       JSONArray devices = new JSONArray();
       List<BluetoothDevice> active = a2dp.getConnectedDevices();
+      BluetoothHeadset calls = headset;
+      List<BluetoothDevice> callDevices = calls == null
+          ? Collections.emptyList() : calls.getConnectedDevices();
       BluetoothDevice routed = null;
       try {
         routed = (BluetoothDevice) call(a2dp, "getActiveDevice");
@@ -164,7 +170,8 @@ public class CodecService extends ICodecService.Stub {
                 .put("name", displayName(device))
                 .put("speaker", soundOutput != null && soundOutput.speaker(device))
                 .put("active", device.equals(routed))
-                .put("connected", active.contains(device));
+                .put("connected", active.contains(device))
+                .put("callsConnected", callDevices.contains(device));
         if (!active.contains(device)) {
           devices.put(d);
           continue;

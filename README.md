@@ -19,8 +19,8 @@ setting to keep paired audio devices available while preventing this automatic
 reconnection after a Bluetooth off/on cycle.
 
 Enable **Block automatic reconnect** and use BlueCodec's **Bluetooth Quick
-Settings tile** to turn Bluetooth off. The next time you enable Bluetooth, choose
-when and where to connect. Pairings stay intact. This adds control over Android's
+Settings tile** to turn Bluetooth off. The next time you enable Bluetooth, BlueCodec blocks classic-audio reconnects
+for the first 2 seconds. After that, a headset you turn on can connect normally. Pairings stay intact. This adds control over Android's
 default reconnect behavior; it is separate from the update-related issues below.
 
 ### Fix low Bluetooth volume after reconnecting
@@ -96,6 +96,35 @@ Only codecs supported by the current phone/headset connection appear. Saving LDA
 for example, cannot add LDAC support to headphones that don't have it. Android still
 negotiates sample rate and bit depth and may fall back to another codec.
 
+### Install and update with Obtainium
+
+[Obtainium](https://obtainium.imranr.dev/) can install BlueCodec and check for
+updates directly from this repository's GitHub Releases.
+
+[Add BlueCodec to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22no.nixo.bluecodec%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fnixolas1%2Fbluecodec%22%2C%22author%22%3A%22nixolas1%22%2C%22name%22%3A%22BlueCodec%22%7D)
+
+Or add it manually:
+
+1. Open Obtainium's **Add App** screen.
+2. Enter `https://github.com/nixolas1/bluecodec` as the source URL. Obtainium
+   should select **GitHub** as the source.
+3. Add the app and install the release APK. Allow Obtainium to install apps if
+   Android asks. If you already have the official release installed, Obtainium
+   can track updates for that installation.
+
+Official releases use package ID `no.nixo.bluecodec` and include an APK asset.
+No custom source or APK filter is needed for the current single-APK releases.
+Obtainium handles update checks; **Shizuku is still required** for BlueCodec's
+Bluetooth controls and must be started again after a phone restart.
+
+A locally built debug APK uses a different signing key and cannot be updated
+with the official release. Before uninstalling that build, turn Bluetooth and
+Shizuku on, turn **Block automatic reconnect** off, and let restoration finish.
+Keep the existing installation when updating between official releases.
+
+See [Obtainium's guide](https://wiki.obtainium.imranr.dev/ui_overview/) for
+source configuration and update settings.
+
 ## Stop automatic reconnect
 
 **Experimental · Tested on Pixel 10 Pro / Android 17.** This feature depends on
@@ -109,6 +138,12 @@ implement a device-specific adapter, and build your own APK.
 3. Use the **Bluetooth tile from BlueCodec** to switch Bluetooth off and on.
 4. When you want to connect, long press the tile and select your headset in Android
    Settings. You can also use **Connect** in BlueCodec.
+
+After Bluetooth starts, a 2-second blocking window suppresses startup reconnects.
+BlueCodec then permits headset-initiated connections while keeping Android’s
+outgoing automatic reconnect policy disabled. A newly connected headset becomes
+the media output, including when you previously selected the phone speaker.
+The timing and headset behavior still need physical-device verification.
 
 The toggle does not disconnect your current headset. It changes what happens the
 next time you switch Bluetooth off with BlueCodec's tile. Android's built-in

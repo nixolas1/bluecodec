@@ -40,6 +40,7 @@ public class ReconnectSettingsTest {
     int reject = -1;
     boolean throwOnSecond;
     boolean connected = true;
+    boolean callsOnly;
     boolean rejectForbidden;
     boolean disableCalled;
     int connectionRequests;
@@ -77,7 +78,7 @@ public class ReconnectSettingsTest {
                   .put("address", "device")
                   .put("profile", e.getKey())
                   .put("policy", e.getValue())
-                  .put("connected", connected));
+                  .put("connected", connected && (!callsOnly || e.getKey() == 1)));
         return new JSONObject()
             .put("allowed", 100)
             .put("unknown", -1)
@@ -120,6 +121,60 @@ public class ReconnectSettingsTest {
       connectionRequests++;
       return "{\"requested\":true}";
     }
+  }
+
+  @Test
+  public void callsOnlyConnectionCompletesMediaOnceAndResetsAfterDisconnect() {
+    long[] time = {1000};
+    settings = new ReconnectSettings(context, () -> time[0]);
+    service.callsOnly = true;
+    settings.setEnabled(true, service);
+    assertEquals(0, service.connectionRequests);
+    time[0] += 2000;
+    settings.reconcile(service);
+    assertEquals(1, service.connectionRequests);
+    settings.reconcile(service);
+    assertEquals(1, service.connectionRequests);
+    service.connected = false;
+    settings.reconcile(service);
+    service.connected = true;
+    settings.reconcile(service);
+    assertEquals(2, service.connectionRequests);
+  }
+
+  @Test
+  public void callsOnlyConnectionPreservesUserDisabledMedia() {
+    long[] time = {1000};
+    settings = new ReconnectSettings(context, () -> time[0]);
+    service.policies.put(2, 0);
+    service.callsOnly = true;
+    settings.setEnabled(true, service);
+    time[0] += 2000;
+    settings.reconcile(service);
+    assertEquals(0, service.connectionRequests);
+    assertEquals(Integer.valueOf(0), service.policies.get(2));
+  }
+
+  @Test
+  public void startupBlockExpiresToAllowIncomingHeadsetConnections() {
+    long[] time = {1000};
+    settings = new ReconnectSettings(context, () -> time[0]);
+    service.connected = false;
+    settings.setEnabled(true, service);
+    assertEquals(Integer.valueOf(0), service.policies.get(2));
+    time[0] += 1999;
+    assertFalse(settings.startupReleaseDue());
+    time[0] += 1;
+    assertTrue(settings.startupReleaseDue());
+    settings.reconcile(service);
+    assertEquals(Integer.valueOf(-1), service.policies.get(2));
+    assertEquals(Integer.valueOf(-1), service.policies.get(1));
+    assertEquals(Integer.valueOf(0), service.policies.get(3));
+    assertFalse(settings.startupReleaseDue());
+    settings.turnBluetoothOff(service);
+    settings.bluetoothStarted();
+    settings.reconcile(service);
+    assertEquals(Integer.valueOf(0), service.policies.get(2));
   }
 
   @Test
