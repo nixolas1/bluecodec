@@ -302,20 +302,11 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout reconnectBox = card();
     LinearLayout reconnectRow = row();
     LinearLayout reconnectText = column();
-    text(reconnectText, "Disable automatic reconnect", 20, ink, true);
-    gap(reconnectText, 6);
-    text(reconnectText, "Experimental · Tested on Pixel 10 Pro", 13, accent, true);
-    gap(reconnectText, 6);
-    text(
-        reconnectText,
-        "Stop headsets reconnecting when you turn Bluetooth back on.",
-        14,
-        muted,
-        false);
+    text(reconnectText, "Block automatic reconnect", 18, ink, true);
     reconnectRow.addView(reconnectText, new LinearLayout.LayoutParams(0, -2, 1));
     MaterialSwitch reconnectSwitch = new MaterialSwitch(this);
     reconnectSwitch.setContentDescription(
-        "Disable automatic reconnect. Experimental. Tested on Pixel 10 Pro.");
+        "Block automatic reconnect. Requires the BlueCodec tile.");
     reconnectSwitch.setChecked(controller.preventReconnect());
     reconnectSwitch.setEnabled(!controller.reconnectBusy);
     reconnectSwitch.setOnCheckedChangeListener(
@@ -329,14 +320,11 @@ public class MainActivity extends AppCompatActivity {
                 }));
     reconnectRow.addView(reconnectSwitch);
     reconnectBox.addView(reconnectRow);
-    gap(reconnectBox, 16);
-    View reconnectDivider = new View(this);
-    reconnectDivider.setBackgroundColor(soft);
-    reconnectBox.addView(reconnectDivider, new LinearLayout.LayoutParams(-1, dp(1)));
-    gap(reconnectBox, 16);
+    gap(reconnectBox, 8);
     text(
         reconnectBox,
-        "Only the BlueCodec tile applies this setting when turning Bluetooth off.",
+        "Use BlueCodec’s tile to turn Bluetooth off. Paired audio devices stay disconnected when"
+            + " you turn it back on.",
         14,
         muted,
         false);
@@ -384,9 +372,25 @@ public class MainActivity extends AppCompatActivity {
       }
     }
     gap(content, 18);
-    LinearLayout footer = row();
+    LinearLayout footer = column();
     textButton(footer, "How it works", this::showDetails);
-    if (controller.monitoring) textButton(footer, "Pause codecs", controller::pauseCodecs);
+    if (controller.monitoring)
+      textButton(footer, "Pause automatic codec switching", controller::pauseCodecs);
+    textButton(
+        footer,
+        "Report an issue",
+        () -> {
+          Intent report =
+              new Intent(
+                  Intent.ACTION_VIEW,
+                  android.net.Uri.parse("https://github.com/nixolas1/bluecodec/issues/new/choose"));
+          try {
+            startActivity(report);
+          } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "No browser available to open GitHub issues.", Toast.LENGTH_LONG)
+                .show();
+          }
+        });
     content.addView(footer);
   }
 
@@ -456,6 +460,7 @@ public class MainActivity extends AppCompatActivity {
     codecDivider.setBackgroundColor(soft);
     sound.addView(codecDivider, new LinearLayout.LayoutParams(-1, dp(1)));
     gap(sound, 8);
+    text(sound, "Set default codec", 14, muted, false);
     if (connected && codecs != null && codecs.length() > 0) {
       ChipGroup group = new ChipGroup(this);
       group.setSingleSelection(true);
@@ -548,7 +553,7 @@ public class MainActivity extends AppCompatActivity {
     toggle.setContentDescription("Automatically use the saved codec on reconnect");
     toggle.setChecked(controller.prefs.enabled(address));
     toggle.setEnabled(preferred >= 0);
-    LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(-2, dp(56));
+    LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(-2, dp(48));
     switchLp.leftMargin = dp(12);
     switchRow.addView(toggle, switchLp);
     automatic.addView(switchRow);
@@ -564,7 +569,7 @@ public class MainActivity extends AppCompatActivity {
           rendered = "";
           render();
         });
-    gap(automatic, 12);
+    deviceBox.setPadding(dp(20), dp(20), dp(20), dp(12));
     String status =
         preferred < 0
             ? "Choose a codec first."
@@ -579,7 +584,10 @@ public class MainActivity extends AppCompatActivity {
             || result.contains("rejected")
             || result.contains("Exception")))
       status = "Could not apply the saved codec. Using Android’s selection.";
-    if (!status.isEmpty()) text(automatic, status, 14, muted, false);
+    if (!status.isEmpty()) {
+      gap(automatic, 8);
+      text(automatic, status, 14, muted, false);
+    }
     if (controller.prefs.enabled(address) && !controller.monitoring)
       button(automatic, "Resume automatic switching", true, true, this::startMonitoring);
   }
@@ -693,6 +701,7 @@ public class MainActivity extends AppCompatActivity {
         R.drawable.ic_sound_output, 0, 0, 0);
     outputTitle.setCompoundDrawableTintList(ColorStateList.valueOf(ink));
     outputTitle.setCompoundDrawablePadding(dp(10));
+    gap(output, 10);
     JSONObject routing = controller.snapshot.optJSONObject("soundOutput");
     String actual = routing == null ? "" : routing.optString("selected");
     RadioGroup group = new RadioGroup(this);
@@ -790,11 +799,11 @@ public class MainActivity extends AppCompatActivity {
         muted,
         false);
     gap(detail, 18);
-    text(detail, "Manual reconnect", 18, ink, true);
+    text(detail, "Manual reconnect · Experimental", 18, ink, true);
     gap(detail, 6);
     text(
         detail,
-        "Enable Disable automatic reconnect and use the BlueCodec tile to switch Bluetooth off."
+        "Enable Block automatic reconnect and use the BlueCodec tile to switch Bluetooth off."
             + " This blocks headset reconnections first. Android’s normal"
             + " Bluetooth toggle does not do this. Turn Bluetooth on normally, then connect from"
             + " Android Settings or BlueCodec. Applies to classic Bluetooth audio, not LE Audio."

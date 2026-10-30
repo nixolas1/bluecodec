@@ -1,41 +1,86 @@
 <p align="center"><img src="docs/images/icon.svg" width="96" alt="BlueCodec heart and Bluetooth icon"></p>
 <h1 align="center">BlueCodec</h1>
-<p align="center">Your preferred Bluetooth codec. Your choice of when to connect.</p>
+<p align="center">Take control of Bluetooth reconnects, volume, sound output, and audio codecs on Android.</p>
 <p align="center"><a href="https://github.com/nixolas1/bluecodec/releases/latest">Download APK</a> · <a href="https://github.com/nixolas1/bluecodec/issues">Report a problem</a> · <a href="LICENSE">MIT license</a></p>
 
-BlueCodec remembers the audio codec you choose for each headset and reapplies it
-when that headset connects. It also adds a Bluetooth Quick Settings tile that can
-prevent headsets from reconnecting automatically after you switch Bluetooth off
-and on. Uses [Shizuku](https://shizuku.rikka.app/); no root required.
+BlueCodec is a **Bluetooth audio utility for Android**, built to address missing
+controls and audio problems encountered on a **Pixel 10 Pro running Android 17**.
+Stop unwanted Bluetooth auto reconnect, recover volume control after reconnecting,
+switch between Bluetooth speakers and the phone speaker, and remember a preferred
+Bluetooth codec for each device. Uses [Shizuku](https://shizuku.rikka.app/); **no root required**.
 
-**Early release.** Tested on Pixel 10 Pro / Android 17 with Sony WH-1000XM3.
-Android 12+ can install the app, but Bluetooth controls depend on your phone's
-firmware. Other devices are not yet verified.
+## Bluetooth problems BlueCodec addresses
 
-<p align="center"><img src="docs/images/app.png" width="320" alt="BlueCodec showing codec choices and the automatic reconnect toggle"></p>
+### Stop Bluetooth from automatically reconnecting
 
-## Features
+Turning Bluetooth back on can reconnect nearby headphones, speakers, or car audio
+before you choose a device. On the tested Pixel, Android provides no built-in
+setting to keep paired audio devices available while preventing this automatic
+reconnection after a Bluetooth off/on cycle.
 
-- **Connected-device carousel.** Swipe between connected audio devices to configure
-  their codecs. With none connected, the last connected device offers a Connect button.
-- **Sound output.** Radio buttons route media to the phone speaker or a connected
-  Bluetooth audio device through Shizuku. Configuration and playback selection are
-  independent; the selected output changes only after Android confirms the route.
-- **Recover missing Bluetooth volume synchronization.** A guarded Shizuku workaround
-  restores phone volume control when Android loses the active device’s absolute-volume
-  registration. Verified on Pixel 10 Pro / Android 17 with a Samsung soundbar.
-- **A codec preference for each headset.** Choose from the codecs Android reports
-  as selectable for that connection. Automatically reapply your choice, or apply it manually.
-- **Optional automatic reconnect blocking.** Switch Bluetooth off with the
-  BlueCodec tile, then turn it on without nearby headsets immediately taking over.
-- **Connect through Android Settings.** On the tested Pixel, selecting a headset
-  unblocks only that device. Simply opening the list does not unblock devices.
-- **Bluetooth Quick Settings tile.** Tap to switch Bluetooth on/off; long press
-  opens Android's connected-device settings. The wide tile shows the connected
-  device's name and battery, or a count when several devices are connected.
-- **Android device names.** Uses the names you've given your headsets, with stable,
-  locally generated avatars and colors.
-- **Light and dark themes.** Rounded Material components, clear status, and no ads.
+Enable **Block automatic reconnect** and use BlueCodec's **Bluetooth Quick
+Settings tile** to turn Bluetooth off. The next time you enable Bluetooth, choose
+when and where to connect. Pairings stay intact. This adds control over Android's
+default reconnect behavior; it is separate from the update-related issues below.
+
+### Fix low Bluetooth volume after reconnecting
+
+If your **Bluetooth speaker is too quiet after reconnecting**, or the phone's
+volume slider stops controlling the speaker correctly, Android may have lost
+Bluetooth absolute-volume synchronization. This was observed with Onyx Studio 6
+and a Samsung soundbar on the tested Pixel 10 Pro after a recent Android update.
+
+BlueCodec detects the specific missing volume registration we diagnosed and
+restores it automatically when its service is running. It checks the device and
+route first and keeps the initial volume conservative. It is a **Bluetooth volume
+sync workaround**, not a volume booster or a way to bypass hearing protection.
+
+### Switch audio output when Android's media picker gets stuck
+
+The **Android sound output picker** can show “This phone” while audio is actually
+playing on a Bluetooth speaker. Tapping a device may leave a loading indicator
+without switching output. We encountered this on the Pixel 10 Pro after the update,
+including after a reboot.
+
+BlueCodec's **Sound output** radio buttons let you switch from Bluetooth to the
+phone speaker, or between connected Bluetooth audio devices. It uses Android's
+media-routing controls through Shizuku and confirms the actual route before
+marking an output selected. On our test phone, the system picker also recovered
+after these switches, but that recovery is not guaranteed.
+
+### Remember a default Bluetooth codec for each device
+
+Android exposes [Bluetooth codec controls in Developer options](https://developer.android.com/studio/debug/dev-options#networking),
+but the tested Pixel has no normal setting for a persistent, per-device default
+codec that is automatically reapplied after reconnecting.
+
+BlueCodec saves your choice of **LDAC, aptX HD, aptX, AAC, or SBC**, when supported
+by the phone and connected device. Enable **Apply on reconnect** to reapply that
+preference automatically. Swipe between connected devices to configure each one;
+changing the configuration card does not switch playback.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/app.png" width="300" alt="BlueCodec on Pixel 10 Pro: connected Bluetooth device carousel, codec selection, sound output radio buttons, and disable automatic reconnect control">
+  <img src="docs/images/app-dark.png" width="300" alt="BlueCodec dark theme with Bluetooth speaker selection, phone speaker output, automatic reconnect blocking, and GitHub issue reporting">
+</p>
+
+Real device captures of the current interface. Codec choices depend on the
+connected device; speakers with only SBC do not show an Apply on reconnect toggle.
+
+## Pixel 10 Pro / Android update compatibility
+
+**Early release.** The volume and output-picker problems were observed on our
+Pixel 10 Pro after a recent update. The output-picker investigation used Android
+17 build `CP3A.261005.005` in October 2026. We have not established that the update
+caused either fault or that all Pixel 10 Pro phones are affected.
+
+Testing includes Sony WH-1000XM3 headphones, HK Onyx Studio 6, and a Samsung
+soundbar. Android 12+ can install BlueCodec, but these Bluetooth workarounds depend
+on firmware. Reconnect blocking covers classic A2DP/HFP audio; the output picker
+covers classic A2DP. LE Audio, hearing aids, and casting are not supported by the
+output control. See [verification and test limits](docs/verification.md).
 
 ## Install and set up
 
@@ -58,7 +103,7 @@ firmware-specific Bluetooth behavior. For other devices, see the
 [device adaptation guide](docs/device-compatibility.md) to investigate compatibility,
 implement a device-specific adapter, and build your own APK.
 
-1. Enable **Disable automatic reconnect** in BlueCodec.
+1. Enable **Block automatic reconnect** in BlueCodec.
 2. Tap **Add Bluetooth tile** and accept Android's prompt. On Android 12, add it
    manually through the Quick Settings editor.
 3. Use the **Bluetooth tile from BlueCodec** to switch Bluetooth off and on.
@@ -69,13 +114,13 @@ The toggle does not disconnect your current headset. It changes what happens the
 next time you switch Bluetooth off with BlueCodec's tile. Android's built-in
 Bluetooth-off switch does not run the blocking step.
 
-With **Disable automatic reconnect** off, the tile is a normal Bluetooth power
+With **Block automatic reconnect** off, the tile is a normal Bluetooth power
 switch. Turning the setting off restores the connection settings BlueCodec saved;
 nearby headsets may then reconnect. If Bluetooth is off, restoration waits until
 it is on again.
 
 **Before uninstalling or clearing BlueCodec's data:** turn Bluetooth and Shizuku
-on, turn **Disable automatic reconnect** off, and let restoration finish. Otherwise,
+on, turn **Block automatic reconnect** off, and let restoration finish. Otherwise,
 saved headset profiles can remain blocked after the app is removed.
 
 ## Quick Settings sizes
@@ -107,7 +152,7 @@ icon/text click targets to app tiles.
   verifies the Settings/SystemUI caller and opens only the selected device. This
   depends on firmware log behavior and is currently verified on the Pixel above.
 - **If Settings cannot connect:** keep Shizuku running and try **Connect** in
-  BlueCodec. To return to normal Android behavior, turn **Disable automatic
+  BlueCodec. To return to normal Android behavior, turn **Block automatic
   reconnect** off with Bluetooth on.
 - **Codec changes are bounded.** BlueCodec verifies the negotiated result and
   stops retrying if the phone/headset rejects the preference.
@@ -123,7 +168,7 @@ pairings or change firmware.
 | Access | Purpose |
 | --- | --- |
 | Nearby devices | Read Bluetooth state and receive connection events |
-| Shizuku | Read/apply codecs, manage classic-audio connection policies, and switch Bluetooth power |
+| Shizuku | Apply codecs, manage reconnect policies, switch media output, recover volume synchronization, and toggle Bluetooth power |
 | Foreground service / notifications | Keep automatic codec switching and manual connection handling running |
 | Boot completed | Offer a reminder to resume after restart |
 
