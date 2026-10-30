@@ -16,8 +16,11 @@ firmware. Other devices are not yet verified.
 
 ## Features
 
-- **Follow the connected device.** Opening the app selects the active audio device;
-  connecting another device updates the selection automatically.
+- **Connected-device carousel.** Swipe between connected audio devices to configure
+  their codecs. With none connected, the last connected device offers a Connect button.
+- **Sound output.** Radio buttons route media to the phone speaker or a connected
+  Bluetooth audio device through Shizuku. Configuration and playback selection are
+  independent; the selected output changes only after Android confirms the route.
 - **Recover missing Bluetooth volume synchronization.** A guarded Shizuku workaround
   restores phone volume control when Android loses the active device’s absolute-volume
   registration. Verified on Pixel 10 Pro / Android 17 with a Samsung soundbar.
@@ -41,7 +44,8 @@ firmware. Other devices are not yet verified.
    and install it. Android may ask you to allow installation from your browser or file manager.
 3. Open BlueCodec. Grant **Nearby devices**, allow Shizuku access, and allow the
    monitoring notification when prompted.
-4. Connect a headset. Select a **Preferred codec** and enable **Automatic switching**.
+4. Connect a headset. Select its codec and enable **Apply on reconnect** if it has
+   more than one codec. Swipe its card to configure another connected device.
 
 Only codecs supported by the current phone/headset connection appear. Saving LDAC,
 for example, cannot add LDAC support to headphones that don't have it. Android still

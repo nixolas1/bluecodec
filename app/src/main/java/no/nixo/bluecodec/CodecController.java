@@ -22,6 +22,7 @@ public class CodecController extends Application {
   Preferences prefs;
   ReconnectSettings reconnect;
   boolean reconnectBusy;
+  String pendingOutput = "", outputError = "";
   String reconnectActionMessage = "";
   boolean reconnectActionFailed;
   boolean serviceRunning;
@@ -39,7 +40,7 @@ public class CodecController extends Application {
               new ComponentName("no.nixo.bluecodec", CodecService.class.getName()))
           .daemon(false)
           .processNameSuffix("codec")
-          .version(14);
+          .version(15);
   private final ServiceConnection connection =
       new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder binder) {
@@ -202,6 +203,7 @@ public class CodecController extends Application {
                   refreshing = false;
                   if (service != remote) return;
                   snapshot = data;
+                  rememberLastConnected(data);
                   readiness =
                       data.has("error")
                           ? data.optString("error")
@@ -602,6 +604,62 @@ public class CodecController extends Application {
                   main.postDelayed(() -> refresh(false), 1500);
                   main.postDelayed(this::reconcileReconnect, 16000);
                 }
+              });
+        });
+  }
+
+  private void rememberLastConnected(JSONObject state) {
+    JSONArray devices = state.optJSONArray("devices");
+    if (devices == null) return;
+    JSONObject last = null;
+    for (int i = 0; i < devices.length(); i++) {
+      JSONObject d = devices.optJSONObject(i);
+      if (d != null
+          && d.optBoolean("connected")
+          && (last == null || !connected.contains(d.optString("address")))) last = d;
+    }
+    if (last != null) {
+      String stored = prefs.store.getString("lastConnected", "");
+      JSONObject old = null;
+      try {
+        old = new JSONObject(stored);
+      } catch (Exception ignored) {
+      }
+      JSONObject stillConnected = old == null ? null : find(state, old.optString("address"));
+      if (stillConnected != null
+          && stillConnected.optBoolean("connected")
+          && connected.contains(last.optString("address"))) last = stillConnected;
+      prefs.store.edit().putString("lastConnected", last.toString()).apply();
+    }
+  }
+
+  void selectSoundOutput(String target) {
+    if (remote == null || !pendingOutput.isEmpty()) return;
+    pendingOutput = target;
+    outputError = "";
+    ICodecService service = remote;
+    publish();
+    worker.execute(
+        () -> {
+          String failure = "";
+          JSONObject checked = null;
+          try {
+            JSONObject result = new JSONObject(service.selectSoundOutput(target));
+            failure = result.optString("error");
+            checked = new JSONObject(service.inspect());
+          } catch (Exception e) {
+            failure = "Sound output unavailable. Reconnect Shizuku and try again.";
+          }
+          String error = failure;
+          JSONObject state = checked;
+          main.post(
+              () -> {
+                pendingOutput = "";
+                if (remote == service) {
+                  outputError = error;
+                  if (state != null) snapshot = state;
+                }
+                publish();
               });
         });
   }

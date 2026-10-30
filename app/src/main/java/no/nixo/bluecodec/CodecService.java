@@ -16,6 +16,7 @@ public class CodecService extends ICodecService.Stub {
   private volatile String initialization = "Waiting for A2DP service";
   private BluetoothAdapter adapter;
   private volatile AudioPolicyAccess audioPolicies;
+  private volatile SoundOutput soundOutput;
   private volatile ManualConnectionRequests manualRequests;
   private volatile VolumeSyncRepair volumeSync;
   private final java.util.concurrent.ScheduledExecutorService volumeWorker =
@@ -40,6 +41,11 @@ public class CodecService extends ICodecService.Stub {
                 Context system = (Context) at.getMethod("getSystemContext").invoke(thread);
                 Context shell = system.createPackageContext("com.android.shell", 0);
                 adapter = shell.getSystemService(BluetoothManager.class).getAdapter();
+                try {
+                  soundOutput = new SoundOutput(shell, () -> a2dp);
+                } catch (Exception ignored) {
+                  /* Unsupported routing must not disable codecs. */
+                }
                 try {
                   volumeSync = new VolumeSyncRepair(shell, () -> a2dp);
                   volumeWorker.scheduleWithFixedDelay(
@@ -118,6 +124,7 @@ public class CodecService extends ICodecService.Stub {
     JSONObject result = new JSONObject();
     try {
       result.put("uid", android.os.Process.myUid());
+      if (soundOutput != null) result.put("soundOutput", soundOutput.inspect());
       if (volumeSync != null) result.put("volumeSync", volumeSync.status);
       if (adapter != null && !adapter.isEnabled())
         return result.put("bluetoothEnabled", false).put("devices", new JSONArray()).toString();
@@ -155,6 +162,7 @@ public class CodecService extends ICodecService.Stub {
             new JSONObject()
                 .put("address", device.getAddress())
                 .put("name", displayName(device))
+                .put("speaker", soundOutput != null && soundOutput.speaker(device))
                 .put("active", device.equals(routed))
                 .put("connected", active.contains(device));
         if (!active.contains(device)) {
@@ -232,6 +240,11 @@ public class CodecService extends ICodecService.Stub {
   public String audioPolicies() {
     AudioPolicyAccess access = audioPolicies;
     return access == null ? "{\"error\":\"Bluetooth is not ready\"}" : access.inspect();
+  }
+
+  public String selectSoundOutput(String target) {
+    SoundOutput output = soundOutput;
+    return output == null ? "{\"error\":\"Sound output is not ready.\"}" : output.select(target);
   }
 
   public String setAudioPolicy(String address, int profile, int policy) {

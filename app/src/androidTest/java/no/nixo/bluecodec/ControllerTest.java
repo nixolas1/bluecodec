@@ -20,9 +20,13 @@ public class ControllerTest {
     final AtomicInteger requests = new AtomicInteger();
     final AtomicInteger powerOffRequests = new AtomicInteger();
     final AtomicInteger policyReads = new AtomicInteger();
+    final AtomicInteger outputRequests = new AtomicInteger();
+    volatile String output = "phone", outputFailure = "";
 
     public String inspect() {
-      return "{\"devices\":[{\"address\":\""
+      return "{\"soundOutput\":{\"selected\":\""
+          + output
+          + "\"},\"devices\":[{\"address\":\""
           + DEVICE
           + "\",\"connected\":true,\"current\":{\"type\":4}}]}";
     }
@@ -59,6 +63,13 @@ public class ControllerTest {
     }
 
     public void destroy() {}
+
+    public String selectSoundOutput(String target) {
+      outputRequests.incrementAndGet();
+      if (!outputFailure.isEmpty()) return "{\"error\":\"" + outputFailure + "\"}";
+      output = target;
+      return "{}";
+    }
   }
 
   void main(Runnable action) {
@@ -98,6 +109,48 @@ public class ControllerTest {
   public void cleanup() {
     main(() -> controller.setMonitoring(false));
     context.getSharedPreferences("", 0).edit().clear().commit();
+  }
+
+  @Test
+  public void outputSelectionConfirmsReadbackAndIgnoresDuplicateTap() throws Exception {
+    java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+    main(
+        () -> {
+          controller.listeners.add(
+              () -> {
+                if (controller.pendingOutput.isEmpty()) done.countDown();
+              });
+          controller.selectSoundOutput(DEVICE);
+          controller.selectSoundOutput("phone");
+          assertEquals(DEVICE, controller.pendingOutput);
+        });
+    assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS));
+    assertEquals(1, service.outputRequests.get());
+    main(
+        () ->
+            assertEquals(
+                DEVICE, controller.snapshot.optJSONObject("soundOutput").optString("selected")));
+  }
+
+  @Test
+  public void rejectedOutputKeepsActualRouteAndExposesError() throws Exception {
+    service.outputFailure = "Device disconnected";
+    java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+    main(
+        () -> {
+          controller.listeners.add(
+              () -> {
+                if (controller.pendingOutput.isEmpty()) done.countDown();
+              });
+          controller.selectSoundOutput(DEVICE);
+        });
+    assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS));
+    main(
+        () -> {
+          assertEquals(
+              "phone", controller.snapshot.optJSONObject("soundOutput").optString("selected"));
+          assertEquals("Device disconnected", controller.outputError);
+        });
   }
 
   @Test

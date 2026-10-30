@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
   private String selected = "", rendered = "";
   private final DeviceSelection deviceSelection = new DeviceSelection();
   private int ink, muted, accent, soft, surface;
+  private final java.util.Set<String> codecHelp = new java.util.HashSet<>();
   private final Runnable update = this::render;
   private final Runnable poll =
       new Runnable() {
@@ -177,6 +178,10 @@ public class MainActivity extends AppCompatActivity {
   }
 
   LinearLayout card() {
+    return card(content);
+  }
+
+  LinearLayout card(LinearLayout parent) {
     MaterialCardView c = new MaterialCardView(this);
     c.setRadius(dp(28));
     c.setCardBackgroundColor(surface);
@@ -185,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
     LinearLayout inside = column();
     inside.setPadding(dp(20), dp(20), dp(20), dp(20));
     c.addView(inside);
-    content.addView(c, new LinearLayout.LayoutParams(-1, -2));
+    parent.addView(c, new LinearLayout.LayoutParams(-1, -2));
     return inside;
   }
 
@@ -212,7 +217,9 @@ public class MainActivity extends AppCompatActivity {
             + controller.reconnectBusy
             + controller.manualConnectionError
             + controller.reconnectActionMessage
-            + controller.serviceRunning;
+            + controller.serviceRunning
+            + controller.pendingOutput
+            + controller.outputError;
     if (signature.equals(rendered)) return;
     rendered = signature;
     content.removeAllViews();
@@ -288,206 +295,9 @@ public class MainActivity extends AppCompatActivity {
       textButton(setup, "Connection details", this::showDetails);
       gap(content, 16);
     }
-    if (devices == null || devices.length() == 0) {
-      if (ready && controller.snapshot.optBoolean("bluetoothEnabled", true)) {
-        LinearLayout empty = card();
-        text(empty, "No paired audio devices", 22, ink, true);
-        gap(empty, 8);
-        text(empty, "Pair an audio device in Android Bluetooth settings.", 16, muted, false);
-        button(
-            empty,
-            "Open Bluetooth settings",
-            true,
-            true,
-            () -> startActivity(new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)));
-      }
-    } else {
-      JSONObject device = CodecController.find(controller.snapshot, selected);
-      if (device == null) {
-        device = devices.optJSONObject(0);
-        selected = device.optString("address");
-      }
-      final String address = selected;
-      final JSONObject active = device;
-      boolean connected = device.optBoolean("connected");
-      JSONObject current = device.optJSONObject("current");
-      int preferred = controller.prefs.codec(address);
-      JSONArray codecs = device.optJSONArray("selectable");
-      LinearLayout deviceBox = card();
-      LinearLayout identity = row();
-      identity.addView(avatar(address, 68));
-      LinearLayout name = column();
-      name.setPadding(dp(16), 0, 0, 0);
-      text(name, device.optString("name", "Headphones"), 22, ink, true);
-
-      gap(name, 4);
-      text(
-          name,
-          connected && current != null
-              ? "Connected · " + current.optString("name")
-              : connected ? "Connected · Codec unavailable" : "Not connected",
-          14,
-          muted,
-          false);
-      identity.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-      deviceBox.addView(identity);
-      gap(deviceBox, 16);
-      View divider = new View(this);
-      divider.setBackgroundColor(soft);
-      deviceBox.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
-      gap(deviceBox, 8);
-      MaterialButton changeDevice =
-          textButton(deviceBox, "Configure other device", () -> chooseHeadset(devices));
-      changeDevice.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(48)));
-      changeDevice.setInsetTop(0);
-      changeDevice.setInsetBottom(0);
-      deviceBox.setPadding(dp(20), dp(20), dp(20), dp(8));
-      if (!connected)
-        button(
-            deviceBox,
-            "Connect",
-            true,
-            ready && !controller.reconnectBusy,
-            () -> controller.connectDevice(address));
-      gap(content, 18);
-      LinearLayout sound = card();
-      text(sound, "Preferred codec", 20, ink, true);
-      gap(sound, 6);
-      text(
-          sound,
-          preferred < 0 ? "Choose a codec." : "Saved: " + controller.prefs.codecName(address),
-          14,
-          muted,
-          false);
-      gap(sound, 10);
-      if (connected && codecs != null && codecs.length() > 0) {
-        ChipGroup group = new ChipGroup(this);
-        group.setSingleSelection(true);
-        group.setSelectionRequired(true);
-        group.setChipSpacingHorizontal(dp(8));
-        group.setChipSpacingVertical(dp(4));
-        for (int i = 0; i < codecs.length(); i++) {
-          JSONObject codec = codecs.optJSONObject(i);
-          int type = codec.optInt("type");
-          String label = codec.optString("name");
-          Chip chip = new Chip(this);
-          chip.setId(View.generateViewId());
-          chip.setText(label);
-          chip.setCheckable(true);
-          chip.setChecked(type == preferred);
-          chip.setEnsureMinTouchTargetSize(true);
-          chip.setChipCornerRadius(dp(18));
-          chip.setMinHeight(dp(48));
-          chip.setTextSize(14);
-          chip.setChipStrokeWidth(0);
-          chip.setChipBackgroundColor(
-              new ColorStateList(
-                  new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                  new int[] {accent, soft}));
-          chip.setTextColor(
-              new ColorStateList(
-                  new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                  new int[] {getColor(R.color.on_accent), ink}));
-          chip.setCheckedIconTint(ColorStateList.valueOf(getColor(R.color.on_accent)));
-          chip.setOnClickListener(
-              v -> {
-                synchronized (controller.prefs) {
-                  controller.prefs.save(address, type, label);
-                }
-                controller.changed(address);
-                rendered = "";
-                render();
-              });
-          group.addView(chip);
-        }
-        sound.addView(group);
-      } else
-        text(
-            sound,
-            connected
-                ? "Codecs unavailable. Try reconnecting."
-                : "Connect this device to see supported codecs.",
-            15,
-            muted,
-            false);
-      if (preferred >= 0) {
-        gap(sound, 8);
-        text(
-            sound,
-            CodecDescriptions.forName(controller.prefs.codecName(address)),
-            14,
-            muted,
-            false);
-      }
-      if (controller.isApplying(address)) {
-        LinearLayout loading = row();
-        loading.setPadding(0, dp(12), 0, dp(4));
-        com.google.android.material.progressindicator.CircularProgressIndicator progress =
-            new com.google.android.material.progressindicator.CircularProgressIndicator(this);
-        progress.setIndeterminate(true);
-        progress.setIndicatorSize(dp(22));
-        progress.setTrackThickness(dp(2));
-        progress.setIndicatorColor(accent);
-        progress.setTrackColor(soft);
-        loading.addView(progress, new LinearLayout.LayoutParams(dp(28), dp(28)));
-        TextView label = text(loading, "Applying…", 15, muted, false);
-        label.setPadding(dp(10), 0, 0, 0);
-        label.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        sound.addView(loading);
-      } else if (preferred >= 0 && (current == null || current.optInt("type", -1) != preferred))
-        button(
-            sound,
-            "Apply " + controller.prefs.codecName(address),
-            true,
-            ready && connected,
-            () -> controller.manual(address));
-      gap(content, 18);
-      LinearLayout automatic = card();
-      LinearLayout switchRow = row();
-      LinearLayout description = column();
-      text(description, "Automatic switching", 20, ink, true);
-      gap(description, 5);
-      text(description, "Apply the saved codec on reconnect.", 14, muted, false);
-      switchRow.addView(description, new LinearLayout.LayoutParams(0, -2, 1));
-      MaterialSwitch toggle = new MaterialSwitch(this);
-      toggle.setContentDescription("Automatically use the saved codec on reconnect");
-      toggle.setChecked(controller.prefs.enabled(address));
-      toggle.setEnabled(preferred >= 0);
-      LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(-2, dp(56));
-      switchLp.leftMargin = dp(12);
-      switchRow.addView(toggle, switchLp);
-      automatic.addView(switchRow);
-      toggle.setOnCheckedChangeListener(
-          (v, on) -> {
-            synchronized (controller.prefs) {
-              controller.prefs.enable(address, on);
-            }
-            controller.changed(address);
-            if (on) startMonitoring();
-            else if (!controller.needsMonitoring())
-              stopService(new Intent(this, MonitorService.class));
-            rendered = "";
-            render();
-          });
-      gap(automatic, 12);
-      String status =
-          preferred < 0
-              ? "Choose a codec first."
-              : !controller.prefs.enabled(address)
-                  ? ""
-                  : !controller.monitoring
-                      ? "Paused"
-                      : !ready ? "Shizuku unavailable" : !connected ? "Waiting for connection" : "";
-      String result = controller.results.get(address);
-      if (result != null
-          && (result.contains("unavailable")
-              || result.contains("rejected")
-              || result.contains("Exception")))
-        status = "Could not apply the saved codec. Using Android’s selection.";
-      if (!status.isEmpty()) text(automatic, status, 14, muted, false);
-      if (controller.prefs.enabled(address) && !controller.monitoring)
-        button(automatic, "Resume automatic switching", true, true, this::startMonitoring);
-    }
+    renderDevices(devices, ready);
+    gap(content, 16);
+    renderSoundOutput(devices, ready);
     gap(content, 18);
     LinearLayout reconnectBox = card();
     LinearLayout reconnectRow = row();
@@ -602,71 +412,349 @@ public class MainActivity extends AppCompatActivity {
     }
   }
 
-  void chooseHeadset(JSONArray devices) {
-    BottomSheetDialog dialog = new BottomSheetDialog(this);
-    ScrollView scroll = new ScrollView(this);
-    LinearLayout list = column();
-    list.setPadding(dp(24), dp(28), dp(24), dp(32));
-    text(list, "Device settings", 24, ink, true);
-    gap(list, 8);
+  void renderDevice(LinearLayout parent, JSONObject device, boolean ready) {
+    final String address = device.optString("address");
+    final JSONObject active = device;
+    boolean connected = device.optBoolean("connected");
+    JSONObject current = device.optJSONObject("current");
+    int preferred = controller.prefs.codec(address);
+    JSONArray codecs = device.optJSONArray("selectable");
+    LinearLayout deviceBox = card(parent);
+    LinearLayout identity = row();
+    ImageView icon = avatar(address, 48);
+    icon.setImageDrawable(new DeviceAvatar(address, device.optBoolean("speaker")));
+    identity.addView(icon);
+    LinearLayout name = column();
+    name.setPadding(dp(16), 0, 0, 0);
+    text(name, device.optString("name", "Headphones"), 22, ink, true);
+
+    gap(name, 4);
     text(
-        list,
-        "Choose a device to edit its preferred codec. This does not change the audio connection.",
+        name,
+        connected && current != null
+            ? "Connected · " + current.optString("name")
+            : connected ? "Connected · Codec unavailable" : "Not connected",
         14,
         muted,
         false);
-    gap(list, 20);
-    for (int i = 0; i < devices.length(); i++) {
-      JSONObject d = devices.optJSONObject(i);
-      String address = d.optString("address");
-      LinearLayout item = row();
-      item.setPadding(dp(12), dp(12), dp(12), dp(12));
-      item.setMinimumHeight(dp(80));
-      item.addView(avatar(address, 52));
-      LinearLayout label = column();
-      label.setPadding(dp(14), 0, 0, 0);
-      text(label, d.optString("name", "Headphones"), 17, ink, true);
-      JSONObject currentCodec = d.optJSONObject("current");
+    identity.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
+    deviceBox.addView(identity);
+    if (!connected) {
+      button(
+          deviceBox,
+          controller.reconnectBusy ? "Connecting…" : "Connect",
+          true,
+          ready
+              && !controller.reconnectBusy
+              && controller.snapshot.optBoolean("bluetoothEnabled", true),
+          () -> controller.connectDevice(address));
+      return;
+    }
+    LinearLayout sound = deviceBox;
+    gap(sound, 14);
+    View codecDivider = new View(this);
+    codecDivider.setBackgroundColor(soft);
+    sound.addView(codecDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+    gap(sound, 8);
+    if (connected && codecs != null && codecs.length() > 0) {
+      ChipGroup group = new ChipGroup(this);
+      group.setSingleSelection(true);
+      group.setSelectionRequired(true);
+      group.setChipSpacingHorizontal(dp(8));
+      group.setChipSpacingVertical(dp(4));
+      for (int i = 0; i < codecs.length(); i++) {
+        JSONObject codec = codecs.optJSONObject(i);
+        int type = codec.optInt("type");
+        String label = codec.optString("name");
+        Chip chip = new Chip(this);
+        chip.setId(View.generateViewId());
+        chip.setText(label);
+        chip.setCheckable(true);
+        chip.setChecked(
+            type == (preferred >= 0 ? preferred : current == null ? -1 : current.optInt("type")));
+        chip.setEnsureMinTouchTargetSize(true);
+        chip.setChipCornerRadius(dp(18));
+        chip.setMinHeight(dp(48));
+        chip.setTextSize(14);
+        chip.setChipStrokeWidth(0);
+        chip.setChipBackgroundColor(
+            new ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {accent, soft}));
+        chip.setTextColor(
+            new ColorStateList(
+                new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+                new int[] {getColor(R.color.on_accent), ink}));
+        chip.setCheckedIconTint(ColorStateList.valueOf(getColor(R.color.on_accent)));
+        chip.setOnClickListener(
+            v -> {
+              int previous =
+                  preferred >= 0 ? preferred : current == null ? -1 : current.optInt("type");
+              if (type == previous) return;
+              codecHelp.add(address);
+              synchronized (controller.prefs) {
+                controller.prefs.save(address, type, label);
+              }
+              controller.changed(address);
+              rendered = "";
+              render();
+            });
+        group.addView(chip);
+      }
+      sound.addView(group);
+    } else
       text(
-          label,
-          d.optBoolean("connected")
-              ? "Connected" + (currentCodec == null ? "" : " · " + currentCodec.optString("name"))
-              : "Not connected",
-          13,
+          sound,
+          connected
+              ? "Codecs unavailable. Try reconnecting."
+              : "Connect this device to see supported codecs.",
+          15,
           muted,
           false);
-      text(label, "Preferred codec: " + controller.prefs.codecName(address), 13, muted, false);
-      boolean duplicateName = false;
-      for (int j = 0; j < devices.length(); j++) {
-        if (j != i && d.optString("name").equals(devices.optJSONObject(j).optString("name")))
-          duplicateName = true;
-      }
-      if (duplicateName)
-        text(
-            label,
-            "Device ID · " + address.substring(Math.max(0, address.length() - 5)),
-            12,
-            muted,
-            false);
-      if (address.equals(selected)) text(label, "Selected", 12, accent, true);
-      item.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
-      android.util.TypedValue value = new android.util.TypedValue();
-      getTheme().resolveAttribute(android.R.attr.selectableItemBackground, value, true);
-      item.setBackgroundResource(value.resourceId);
-      item.setFocusable(true);
-      item.setOnClickListener(
-          v -> {
-            selected = address;
-            controller.prefs.store.edit().putString("selected", selected).apply();
-            rendered = "";
-            dialog.dismiss();
-            render();
-          });
-      list.addView(item);
+    if (preferred >= 0 && codecHelp.contains(address)) {
+      gap(sound, 8);
+      text(sound, CodecDescriptions.forName(controller.prefs.codecName(address)), 14, muted, false);
     }
-    scroll.addView(list);
-    dialog.setContentView(scroll);
-    dialog.show();
+    if (controller.isApplying(address)) {
+      LinearLayout loading = row();
+      loading.setPadding(0, dp(12), 0, dp(4));
+      com.google.android.material.progressindicator.CircularProgressIndicator progress =
+          new com.google.android.material.progressindicator.CircularProgressIndicator(this);
+      progress.setIndeterminate(true);
+      progress.setIndicatorSize(dp(22));
+      progress.setTrackThickness(dp(2));
+      progress.setIndicatorColor(accent);
+      progress.setTrackColor(soft);
+      loading.addView(progress, new LinearLayout.LayoutParams(dp(28), dp(28)));
+      TextView label = text(loading, "Applying…", 15, muted, false);
+      label.setPadding(dp(10), 0, 0, 0);
+      label.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+      sound.addView(loading);
+    } else if (preferred >= 0 && (current == null || current.optInt("type", -1) != preferred))
+      button(
+          sound,
+          "Apply " + controller.prefs.codecName(address),
+          true,
+          ready && connected,
+          () -> controller.manual(address));
+    if (codecs == null || codecs.length() <= 1) return;
+    gap(deviceBox, 10);
+    LinearLayout automatic = deviceBox;
+    LinearLayout switchRow = row();
+    LinearLayout description = column();
+    text(description, "Apply on reconnect", 15, ink, false);
+    switchRow.addView(description, new LinearLayout.LayoutParams(0, -2, 1));
+    MaterialSwitch toggle = new MaterialSwitch(this);
+    toggle.setContentDescription("Automatically use the saved codec on reconnect");
+    toggle.setChecked(controller.prefs.enabled(address));
+    toggle.setEnabled(preferred >= 0);
+    LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(-2, dp(56));
+    switchLp.leftMargin = dp(12);
+    switchRow.addView(toggle, switchLp);
+    automatic.addView(switchRow);
+    toggle.setOnCheckedChangeListener(
+        (v, on) -> {
+          synchronized (controller.prefs) {
+            controller.prefs.enable(address, on);
+          }
+          controller.changed(address);
+          if (on) startMonitoring();
+          else if (!controller.needsMonitoring())
+            stopService(new Intent(this, MonitorService.class));
+          rendered = "";
+          render();
+        });
+    gap(automatic, 12);
+    String status =
+        preferred < 0
+            ? "Choose a codec first."
+            : !controller.prefs.enabled(address)
+                ? ""
+                : !controller.monitoring
+                    ? "Paused"
+                    : !ready ? "Shizuku unavailable" : !connected ? "Waiting for connection" : "";
+    String result = controller.results.get(address);
+    if (result != null
+        && (result.contains("unavailable")
+            || result.contains("rejected")
+            || result.contains("Exception")))
+      status = "Could not apply the saved codec. Using Android’s selection.";
+    if (!status.isEmpty()) text(automatic, status, 14, muted, false);
+    if (controller.prefs.enabled(address) && !controller.monitoring)
+      button(automatic, "Resume automatic switching", true, true, this::startMonitoring);
+  }
+
+  void renderDevices(JSONArray devices, boolean ready) {
+    java.util.List<JSONObject> connected = new java.util.ArrayList<>();
+    if (devices != null)
+      for (int i = 0; i < devices.length(); i++) {
+        JSONObject d = devices.optJSONObject(i);
+        if (d != null && d.optBoolean("connected")) connected.add(d);
+      }
+    if (connected.isEmpty()) {
+      try {
+        JSONObject last = new JSONObject(controller.prefs.store.getString("lastConnected", ""));
+        last.put("connected", false);
+        JSONObject latest = CodecController.find(controller.snapshot, last.optString("address"));
+        if (latest != null) last = latest;
+        renderDevice(content, last, ready);
+      } catch (JSONException e) {
+        LinearLayout empty = card();
+        text(empty, "No connected audio devices", 20, ink, true);
+        button(
+            empty,
+            "Open Bluetooth settings",
+            true,
+            true,
+            () -> startActivity(new Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)));
+      }
+      return;
+    }
+    if (connected.size() == 1) {
+      renderDevice(content, connected.get(0), ready);
+      return;
+    }
+    DevicePager pager = new DevicePager(this);
+    pager.setId(View.generateViewId());
+    pager.setAdapter(
+        new androidx.viewpager.widget.PagerAdapter() {
+          public int getCount() {
+            return connected.size();
+          }
+
+          public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+          }
+
+          public Object instantiateItem(ViewGroup container, int position) {
+            LinearLayout page = column();
+            page.setTag(position);
+            renderDevice(page, connected.get(position), ready);
+            container.addView(page);
+            return page;
+          }
+
+          public void destroyItem(ViewGroup container, int position, Object object) {
+            container.removeView((View) object);
+          }
+        });
+    content.addView(pager, new LinearLayout.LayoutParams(-1, -2));
+    LinearLayout dots = row();
+    dots.setGravity(Gravity.CENTER);
+    for (int i = 0; i < connected.size(); i++) {
+      final int index = i;
+      android.widget.ImageButton dot = new android.widget.ImageButton(this);
+      dot.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+      // Keep 48dp touch targets while drawing the two indicators toward each other.
+      if (connected.size() == 2) dot.setPadding(i == 0 ? dp(20) : 0, 0, i == 1 ? dp(20) : 0, 0);
+      dot.setContentDescription(
+          "Configure "
+              + connected.get(i).optString("name")
+              + ", "
+              + (i + 1)
+              + " of "
+              + connected.size());
+      dot.setOnClickListener(v -> pager.setCurrentItem(index, true));
+      dots.addView(dot, new LinearLayout.LayoutParams(dp(48), dp(48)));
+    }
+    content.addView(dots);
+    Runnable updateDots =
+        () -> {
+          for (int i = 0; i < dots.getChildCount(); i++) {
+            android.graphics.drawable.GradientDrawable shape =
+                new android.graphics.drawable.GradientDrawable();
+            shape.setColor(i == pager.getCurrentItem() ? accent : muted);
+            shape.setCornerRadius(dp(6));
+            shape.setSize(dp(i == pager.getCurrentItem() ? 22 : 8), dp(8));
+            android.widget.ImageButton dot = (android.widget.ImageButton) dots.getChildAt(i);
+            dot.setImageDrawable(shape);
+            dot.setSelected(i == pager.getCurrentItem());
+          }
+          pager.requestLayout();
+        };
+    pager.addOnPageChangeListener(
+        new androidx.viewpager.widget.ViewPager.SimpleOnPageChangeListener() {
+          public void onPageSelected(int position) {
+            selected = connected.get(position).optString("address");
+            controller.prefs.store.edit().putString("selected", selected).apply();
+            updateDots.run();
+          }
+        });
+    for (int i = 0; i < connected.size(); i++)
+      if (selected.equals(connected.get(i).optString("address"))) pager.setCurrentItem(i, false);
+    updateDots.run();
+    pager.post(pager::requestLayout);
+  }
+
+  void renderSoundOutput(JSONArray devices, boolean ready) {
+    LinearLayout output = card();
+    TextView outputTitle = text(output, "Sound output", 20, ink, true);
+    outputTitle.setCompoundDrawablesRelativeWithIntrinsicBounds(
+        R.drawable.ic_sound_output, 0, 0, 0);
+    outputTitle.setCompoundDrawableTintList(ColorStateList.valueOf(ink));
+    outputTitle.setCompoundDrawablePadding(dp(10));
+    JSONObject routing = controller.snapshot.optJSONObject("soundOutput");
+    String actual = routing == null ? "" : routing.optString("selected");
+    RadioGroup group = new RadioGroup(this);
+    output.addView(group);
+    addOutput(group, "This phone", "phone", actual, ready && routing != null);
+    if (devices != null)
+      for (int i = 0; i < devices.length(); i++) {
+        JSONObject device = devices.optJSONObject(i);
+        if (device != null && device.optBoolean("connected"))
+          addOutput(
+              group,
+              device.optString("name"),
+              device.optString("address"),
+              actual,
+              ready && routing != null);
+      }
+    String error =
+        !controller.outputError.isEmpty()
+            ? controller.outputError
+            : routing == null
+                ? "Connect Shizuku to choose sound output."
+                : routing.optString("error");
+    if (!error.isEmpty()) text(output, error, 14, muted, false);
+    else if (actual.isEmpty()) text(output, "Current output unavailable", 14, muted, false);
+  }
+
+  void addOutput(RadioGroup group, String name, String target, String actual, boolean ready) {
+    com.google.android.material.radiobutton.MaterialRadioButton radio =
+        new com.google.android.material.radiobutton.MaterialRadioButton(this);
+    radio.setId(View.generateViewId());
+    radio.setText(name);
+    radio.setContentDescription(
+        name + (target.equals(controller.pendingOutput) ? ", switching" : ""));
+    radio.setTextColor(ink);
+    radio.setTextSize(16);
+    radio.setMinHeight(dp(48));
+    radio.setButtonTintList(
+        new ColorStateList(
+            new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+            new int[] {accent, muted}));
+    radio.setEnabled(ready && controller.pendingOutput.isEmpty());
+    LinearLayout outputRow = row();
+    outputRow.addView(radio, new LinearLayout.LayoutParams(0, -2, 1));
+    if (target.equals(controller.pendingOutput)) {
+      com.google.android.material.progressindicator.CircularProgressIndicator spinner =
+          new com.google.android.material.progressindicator.CircularProgressIndicator(this);
+      spinner.setIndeterminate(true);
+      spinner.setIndicatorSize(dp(20));
+      spinner.setTrackThickness(dp(2));
+      spinner.setIndicatorColor(accent);
+      spinner.setTrackColor(soft);
+      spinner.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+      outputRow.addView(spinner, new LinearLayout.LayoutParams(dp(28), dp(28)));
+    }
+    group.addView(outputRow, new RadioGroup.LayoutParams(-1, -2));
+    radio.setChecked(target.equals(actual));
+    radio.setOnClickListener(
+        v -> {
+          radio.setChecked(target.equals(actual));
+          if (!target.equals(actual)) controller.selectSoundOutput(target);
+        });
+    radio.setTag(target);
   }
 
   void showDetails() {

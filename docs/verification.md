@@ -1,5 +1,31 @@
 # Verification
 
+## Connected-device carousel and sound output, 2026-10-30
+
+Debug build and lint passed; 56 instrumentation tests passed on the Pixel 10 Pro.
+New controller tests cover confirmed output readback, duplicate-tap suppression,
+and preserving actual route state with a visible failure. Selection tests now
+require configuration selection to remain independent of playback routing.
+
+Installed in place without clearing application data. With Onyx Studio 6 and
+Nico's Soundbar both connected, the native carousel swiped between their cards;
+speaker avatars, compact codec controls, and page indicators were inspected on
+the device. Both output radio selections were confirmed by the UI and Android
+audio-policy readback. The final phone-speaker selection was also verified by
+Android's current-output command. These checks verify routing, not audible
+output or volume levels.
+
+After exercising these routes, the user reported that Android's system output
+picker also worked again. A fresh system dump included Bluetooth A2DP in its
+connected-output list and correctly selected Onyx in MediaRouter2. Route switching
+may have refreshed the previously inconsistent device state; the exact trigger
+and durability of that recovery are not established.
+
+The no-connections fallback and multi-codec help states are implemented but were
+not exercised with physical device disconnection or a multi-codec headset in
+this pass. Routing currently covers the classic A2DP devices exposed by BlueCodec;
+LE Audio, hearing aids, and casting are not supported by this control.
+
 Initial release: v0.1.0.
 
 ## Physical device

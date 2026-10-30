@@ -63,6 +63,10 @@ public class ReconnectSettingsTest {
 
     public void destroy() {}
 
+    public String selectSoundOutput(String target) {
+      return "{}";
+    }
+
     public String audioPolicies() {
       if (driftAfterWrite && policies.get(1) == 0) policies.put(1, 100);
       try {

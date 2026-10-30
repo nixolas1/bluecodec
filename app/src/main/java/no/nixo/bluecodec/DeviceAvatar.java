@@ -9,8 +9,14 @@ import java.security.MessageDigest;
 final class DeviceAvatar extends Drawable {
   private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final int background, ink, variant;
+  private final boolean speaker;
 
   DeviceAvatar(String id) {
+    this(id, false);
+  }
+
+  DeviceAvatar(String id, boolean speaker) {
+    this.speaker = speaker;
     byte[] digest;
     try {
       digest = MessageDigest.getInstance("SHA-256").digest(id.getBytes(StandardCharsets.UTF_8));
@@ -19,7 +25,7 @@ final class DeviceAvatar extends Drawable {
     }
     float hue = (digest[0] & 255) * 360f / 256;
     background =
-        Color.HSVToColor(new float[] {hue, 0.24f + (digest[1] & 255) / 255f * 0.15f, 0.96f});
+        Color.HSVToColor(new float[] {hue, 0.10f + (digest[1] & 255) / 255f * 0.06f, 0.99f});
     ink = Color.HSVToColor(new float[] {hue, 0.48f, 0.30f});
     variant = digest[2] & 255;
   }
@@ -36,6 +42,13 @@ final class DeviceAvatar extends Drawable {
     paint.setStrokeCap(Paint.Cap.ROUND);
     paint.setStrokeJoin(Paint.Join.ROUND);
     paint.setStyle(Paint.Style.STROKE);
+    if (speaker) {
+      canvas.drawRoundRect(19, 11, 45, 53, 6, 6, paint);
+      canvas.drawCircle(32, 37, 7, paint);
+      canvas.drawCircle(32, 21, 2, paint);
+      canvas.restore();
+      return;
+    }
     float left = 15 + (variant % 4), right = 64 - left, top = 14 + (variant % 3);
     canvas.drawArc(left, top, right, top + 34, 180, 180, false, paint);
     canvas.drawLine(left, 31, left, 43, paint);

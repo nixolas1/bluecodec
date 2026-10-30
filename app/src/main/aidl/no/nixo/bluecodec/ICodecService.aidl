@@ -8,5 +8,6 @@ interface ICodecService {
     String turnBluetoothOff() = 5;
     String turnBluetoothOn() = 6;
     String manualConnectionRequests(boolean enabled) = 7;
+    String selectSoundOutput(String target) = 8;
     void destroy() = 16777114;
 }

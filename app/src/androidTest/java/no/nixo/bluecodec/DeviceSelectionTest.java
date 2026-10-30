@@ -30,23 +30,23 @@ public class DeviceSelectionTest {
   }
 
   @Test
-  public void followsNewConnectionEvenWhilePreviousRemainsConnected() throws Exception {
+  public void retainsConfiguredDeviceWhenAnotherConnects() throws Exception {
     DeviceSelection selection = new DeviceSelection();
     selection.update(state("A:on:active", "B"), "A");
-    assertEquals("B", selection.update(state("A:on:active", "B:on"), "A"));
+    assertEquals("A", selection.update(state("A:on:active", "B:on"), "A"));
   }
 
   @Test
-  public void followsRouteSwitchBetweenAlreadyConnectedDevices() throws Exception {
+  public void configuringDeviceIsIndependentOfPlaybackRoute() throws Exception {
     DeviceSelection selection = new DeviceSelection();
     selection.update(state("A:on:active", "B:on"), "A");
-    assertEquals("B", selection.update(state("A:on", "B:on:active"), "A"));
+    assertEquals("A", selection.update(state("A:on", "B:on:active"), "A"));
   }
 
   @Test
   public void manualConfigurationSurvivesIdenticalRefresh() throws Exception {
     DeviceSelection selection = new DeviceSelection();
-    JSONObject devices = state("A:on:active", "B");
+    JSONObject devices = state("A:on:active", "B:on");
     selection.update(devices, "A");
     assertEquals("B", selection.update(devices, "B"));
     selection.opened();
