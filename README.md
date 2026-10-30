@@ -2,6 +2,7 @@
 <h1 align="center">BlueCodec</h1>
 <p align="center">Take control of Bluetooth reconnects, volume, sound output, and audio codecs on Android.</p>
 <p align="center"><a href="https://github.com/nixolas1/bluecodec/releases/latest">Download APK</a> · <a href="https://github.com/nixolas1/bluecodec/issues">Report a problem</a> · <a href="LICENSE">MIT license</a></p>
+<p align="center"><a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22no.nixo.bluecodec%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fnixolas1%2Fbluecodec%22%2C%22author%22%3A%22nixolas1%22%2C%22name%22%3A%22BlueCodec%22%7D"><img src="docs/images/obtainium.png" width="180" alt="Get it on Obtainium"></a></p>
 
 BlueCodec is a **Bluetooth audio utility for Android**, built to address missing
 controls and audio problems encountered on a **Pixel 10 Pro running Android 17**.
