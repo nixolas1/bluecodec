@@ -76,6 +76,9 @@ saved headset profiles can remain blocked after the app is removed.
 
 ## Quick Settings sizes
 
+Turning Bluetooth on with BlueCodec's tile also opens Android's Bluetooth settings
+so you can choose a device to connect. Turning it off keeps you in Quick Settings.
+
 Android controls the tile's size and appearance. On the tested Pixel:
 
 | Size / connection | Display |

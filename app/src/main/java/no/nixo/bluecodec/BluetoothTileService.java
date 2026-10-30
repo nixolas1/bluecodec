@@ -8,6 +8,7 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Icon;
 import android.os.*;
+import android.provider.Settings;
 import android.service.quicksettings.*;
 import android.widget.Toast;
 
@@ -136,6 +137,15 @@ public class BluetoothTileService extends TileService {
       controller.turnBluetoothOff(this::finished);
     } else if (state == BluetoothAdapter.STATE_OFF) {
       controller.turnBluetoothOn(this::finished);
+      // Launch during the tile tap while SystemUI permits collapsing the shade.
+      // Settings observes Bluetooth turning on and then shows available devices.
+      Intent settings =
+          new Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      if (Build.VERSION.SDK_INT >= 34)
+        startActivityAndCollapse(
+            PendingIntent.getActivity(
+                this, 21, settings, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+      else startActivityAndCollapse(settings);
     }
   }
 
